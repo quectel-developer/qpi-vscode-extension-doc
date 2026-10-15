@@ -1,6 +1,6 @@
 # Quectel Pi
 
-**English** | [简体中文](https://github.com/Quectel-Pi/vscode-extension-quectelpi-issues/blob/main/document/quectel-pi/README.zh-CN.md)
+**English** | [简体中文](https://github.com/quectel-developer/qpi-vscode-extension-doc/blob/master/document/quectel-pi/README.zh-CN.md)
 
 A VS Code extension that drives the whole **Quectel Pi series** SDK workflow from a graphical interface: download the SDK → connect → set up the build environment → build → connect the board → flash → debug.
 
@@ -12,42 +12,74 @@ Supported SDKs:
 | **H1 Simple SDK** | QCS6490 | Native `build.sh` | `efi.bin` + `dtb.bin` + `system.img`, whole-disk EDL flash |
 | **H1 Yocto SDK** | QCS6490 | Yocto / BitBake | Firmware folder, flashed with the SDK's own `flash.sh` |
 
-The extension detects which SDK you are connected to and shows the matching buttons: a Yocto SDK shows "Build kernel / Flash kernel", a simple SDK shows "Build boot / Flash boot", and on the Qualcomm platform "Flash boot" explains that only whole-disk flashing is supported.
+The extension shows the matching buttons for whichever SDK you are connected to.
 
 ---
 
 # Part 1 · User Guide
 
-> This part is for users. Everything is done by clicking buttons in VS Code — no command line knowledge required.
+> This part is for users. Everything is done in VS Code.
 
-## 1. Before you start
+## 1. Before you start (what you need)
 
-| You need | Notes |
-| --- | --- |
-| A computer | Linux (Ubuntu recommended) or Windows. **On Windows the SDK must live inside WSL**, because the SDK's build scripts are Linux shell scripts |
-| The board | Quectel Pi M2 (RK3576) or H1 (QCS6490), plus a USB data cable |
-| Disk space | An M2 / H1 simple SDK build needs a few GB; a **full Yocto build needs tens of GB** |
-| VS Code | Version 1.85 or newer |
-| An SDK source | Either download it inside the extension (step 1 below), or use an SDK directory you already have |
+### Host machine (the computer with the VS Code extension installed)
+
+Building, flashing and device operations all happen on this machine (or are forwarded over SSH to a remote build machine). The extension supports the three host environments below.
+
+**Windows**
+
+- **OS**: Windows 10 / Windows 11, with the **WSL2** subsystem installed (builds run inside a Docker container, so WSL1 will not do).
+- **SDK location**: The SDK source **must live inside WSL** (for example `/home/<user>/qpi-sdk`), because the SDK's build scripts are Linux shell scripts.
+- **Memory**: 16 GB or more recommended (WSL2 uses at most half of the host's memory by default; with too little memory a build may hit a kernel OOM).
+- **Disk**: Downloading and building the M2 / H1 Simple SDK takes tens of GB; **downloading and building a full Yocto SDK takes hundreds of GB**.
+
+**Ubuntu (Linux)**
+
+- **OS**: **Ubuntu 22.04 or 24.04** recommended (the flashing tool qdl depends on glibc ≥ 2.34 and libzip.so, which Ubuntu 20.04 and older do not provide).
+- **SDK location**: Any directory on this machine will do.
+- **Memory**: 16 GB or more recommended.
+- **Disk**: Downloading and building the M2 / H1 Simple SDK takes tens of GB; **downloading and building a full Yocto SDK takes hundreds of GB**.
+
+**macOS**
+
+- **OS**: **macOS 13 Ventura or newer** recommended; an ARM-based Mac is required.
+- **SDK location**: Any directory on the Mac will do. The build does **not** run directly on the Mac — it runs inside a Docker container in the lightweight Linux VM (`colima`) that the extension prepares automatically (see section 7).
+- **Memory**: 16 GB or more recommended (8 GB of it is used by the VM).
+- **Disk**: The VM disk is 100 GB (sparse, grows as it is used), on top of the SDK and build output; **a full Yocto build needs more**.
+
+### The board
+
+The matching boards are **Quectel Pi M2** and **Quectel Pi H1**; the images you build are flashed onto the board and run there. Before you start, connect the board to the right machine with a USB data cable.
+
+- **Quectel Pi M2** — Rockchip **RK3576** SoC.
+- **Quectel Pi H1** — Qualcomm **QCS6490** SoC.
+
+### What else you need
+
+- **VS Code**: version 1.85 or newer.
+- **An SDK source**: either download it inside the extension (see the steps below), or use an SDK directory you already have.
+- **USB driver**: on Windows you need to install the USB driver before the board can be detected; see below for how to get it.
+- **More information**: click Manage Resources → Documentation inside the extension to reach the official site, where you can get the driver and more.
+
+![Click Manage Resources → Documentation to reach the official site for the driver and more](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/information_more_1.png)
 
 Optional: a **remote Linux build machine**. If you build on a server, install VS Code and this extension on your own computer and connect over SSH — see section 6.
-
-**What you do *not* need**: Python, Node.js, or any command line tooling on your computer. The extension prepares everything it needs on first launch.
 
 ## 2. Install the extension
 
 1. Open VS Code, click the **Extensions** icon in the activity bar (or press `Ctrl+Shift+X`).
 2. Search for **Quectel Pi** and click **Install**.
-   - Offline / intranet: click `...` at the top of the Extensions view → **Install from VSIX...** and pick the `.vsix` file you were given.
 3. A **Quectel Pi** icon appears in the activity bar — click it to open the tool panel.
 
-The first time you open the panel, the extension prepares its own runtime in the background (it creates a private, isolated environment for its helper service). This takes a moment on the first launch only; later launches are immediate. The status chip in the panel header shows **Not connected** until you connect to an SDK.
+![Search for Quectel Pi in the Marketplace and click Install](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/download_extension1.png)
+
+The first time you open the panel, the extension prepares its own runtime in the background. The status chip in the panel header shows **Not connected** until you connect to an SDK.
 
 > **Language**: the interface is available in Chinese and English. Click the 🌐 button in the panel header to switch. It follows your VS Code display language until you switch it manually, and remembers your choice afterwards.
 
 ## 3. Take a quick look around
 
-Everything lives in three places:
+Everything lives in three places (features an SDK does not have are hidden):
 
 | Place | What is there |
 | --- | --- |
@@ -59,8 +91,6 @@ Below the card sections, the same side bar shows the **Manage Resources** view �
 
 A few things open as a **separate tab** in the editor area: the connection form, the AT command console, the device info page, the performance monitor, the SDK info page and the Yocto build configuration. Each tab carries the same name as the card that opened it.
 
-Some commands have no card and can only be reached from the **command palette** (`Ctrl+Shift+P`, then type `QPi SDK:`): **tinymix audio control**, **environment check**.
-
 The connection status refreshes every 5 seconds, so plugging in a board is picked up automatically.
 
 ## 4. Do it once: build → flash in five steps
@@ -71,25 +101,25 @@ This is the shortest complete path, from an empty computer to a board running yo
 
 In the side bar, scroll to **Manage Resources** and click **Manage SDK**, then pick your SDK family:
 
-![Select SDK version — M2 or H1](https://raw.githubusercontent.com/Quectel-Pi/vscode-extension-quectelpi-issues/main/images/quectel-pi/step1-select-sdk.png)
+![Select SDK version — M2 or H1](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/step1-select-sdk.png)
 
-*Pick the SDK family. If you pick H1, a second prompt asks whether you want the **Simple SDK** or the **Yocto SDK**; M2 has only one variant.*
+*Pick the SDK family first. If you pick H1, a second prompt asks whether you want the **Simple SDK** or the **Yocto SDK**; M2 has only one variant.*
 
 Next you are asked where to save it:
 
-![Enter the local save path](https://raw.githubusercontent.com/Quectel-Pi/vscode-extension-quectelpi-issues/main/images/quectel-pi/step1-save-path.png)
+![Enter the local save path](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/step1-save-path.png)
 
 *Type an absolute path and press `Enter` — the SDK is `git clone`d into that directory in a dedicated terminal, with live progress. Closing that terminal aborts the download.*
 
 - On Linux / WSL, use a path such as `/home/<username>/qpi-sdk`.
 - On Windows, the path must be inside WSL (e.g. `/home/<username>/qpi-sdk`), see section 6.
-- The download is a few GB and may take a while depending on your network.
+- Depending on your network, the download may take a while.
 
 ### Step 2 · Connect to the SDK
 
 Click **Connect SDK** in the **Connection / SDK** section. A form opens in the editor area:
 
-![The Connect to QPi SDK form](https://raw.githubusercontent.com/Quectel-Pi/vscode-extension-quectelpi-issues/main/images/quectel-pi/step2-connect-sdk.png)
+![The Connect to QPi SDK form](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/step2-connect-sdk.png)
 
 *Leave the mode on **Local** and enter the SDK root directory (the folder you just cloned). If the SDK is on a remote build machine, choose **SSH remote** instead and fill in host / user / password. Click **Connect**.*
 
@@ -101,21 +131,28 @@ Your connection settings are remembered, so the extension reconnects automatical
 
 Click **Configure build env...** in the **Build** section:
 
-![Configuring the build environment, with its terminal log](https://raw.githubusercontent.com/Quectel-Pi/vscode-extension-quectelpi-issues/main/images/quectel-pi/step3-setup-env.png)
+![Configuring the build environment, with its terminal log](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/step3-setup-env.png)
 
-*This runs the SDK's own environment script: it checks and installs the packages a build needs and downloads the prebuilt base images. Installation progress is streamed to the terminal.*
+*This prepares a Docker build environment and then runs the SDK's own environment script inside it. Progress is streamed to the terminal.*
 
-- If system packages are missing, you are asked for your login password once (this is the normal `sudo` password of the machine holding the SDK).
+1. It checks for Docker. If it is missing it installs it — Docker Engine on Linux/WSL, or on **macOS** `colima` (a lightweight Linux VM; no Homebrew, no `sudo`, and Docker Desktop is never used even if installed).
+2. It builds the build image from the SDK's own `docker_env/Dockerfile`. This image contains **every** build dependency, so your host does not need them.
+3. It runs the SDK's `build.sh setenv` **inside that container**, which verifies/installs dependencies and downloads the prebuilt base images.
+
+- On Linux/WSL you are asked for your login password once (installing Docker and building the image use `sudo`). On **macOS no password is needed**.
+- The first run downloads a base image and can take several minutes.
 - Run this once per SDK — but re-run it if a build complains about missing tools.
+- Every later build reuses the same image, so the host toolchain is irrelevant. See section 7 for what this means on macOS.
 
 ### Step 4 · Build
 
 Click **Build all** in the **Build** section:
 
-![A running build with its log in the terminal](https://raw.githubusercontent.com/Quectel-Pi/vscode-extension-quectelpi-issues/main/images/quectel-pi/step4-build-all.png)
+![A running build with its log in the terminal](https://raw.githubusercontent.com/quectel-developer/qpi-vscode-extension-doc/master/images/quectel-pi/step4-build-all.png)
 
 *The build runs in its own terminal and streams the full log. The first build of a Yocto SDK takes a long time; later builds are incremental.*
 
+- The build runs **inside the Docker container** prepared in step 3. Your SDK folder is mounted at the same absolute path in the container, so the artifacts (for example `update.img`) land directly in your SDK directory and the flashing tools can read them.
 - You can also build just the bootloader (**Build boot**), or, on a Yocto SDK, build the bootloader and kernel together (**Build kernel**).
 - **Clean** removes build intermediates if you want a build from scratch.
 - Closing the terminal aborts the build — handy when you want to stop a long build.
@@ -127,7 +164,7 @@ Click **Build all** in the **Build** section:
 3. Put the board into download mode:
    - M2: click **Enter Loader**
    - H1: click **Enter EDL** (Qualcomm 9008 download mode)
-4. Click **Full flash** and wait for it to finish. On M2 you are asked which flashing tool to use — the extension ships with the tools it needs, so there is nothing to install on Windows.
+4. Click **Full flash** and wait for it to finish. On M2 you are asked which flashing tool to use — there is nothing extra to install.
 5. Click **Reboot device**. The board boots into the system you just built.
 
 ## 5. The three SDKs in detail
@@ -136,7 +173,7 @@ Click **Build all** in the **Build** section:
 
 1. **Download**: Manage Resources → Manage SDK → **M2** → absolute path → `Enter`.
 2. **Connect**: Connect SDK, mode **Local** (or **SSH remote** to build on a server).
-3. **Configure build env...**: install the build dependencies and prebuilt images.
+3. **Configure build env...**: prepares the Docker build image and downloads the prebuilt base images.
 4. **Build all**: produces `update.img`. **Build boot** builds only the bootloader.
 5. **Device info**: plug in the board over USB and confirm it is detected.
 6. **Enter Loader**: puts the board into the Rockchip loader mode.
@@ -147,7 +184,7 @@ Click **Build all** in the **Build** section:
 
 1. **Download**: Manage Resources → Manage SDK → **H1** → **H1 Simple SDK** → absolute path → `Enter`.
 2. **Connect**: as above.
-3. **Configure build env...**: installs the dependencies and downloads the prebuilt base image.
+3. **Configure build env...**: prepares the Docker build image and downloads the prebuilt base image.
 4. **Build all**: produces the partition images; **Build boot** builds only `efi.bin` / `dtb.bin`.
 5. **Device info**: plug in the board over USB and confirm it is detected.
 6. **Enter EDL**: puts the board into Qualcomm EDL 9008 download mode.
@@ -158,7 +195,7 @@ Click **Build all** in the **Build** section:
 
 1. **Download**: Manage Resources → Manage SDK → **H1** → **H1 Yocto SDK** → absolute path → `Enter`.
 2. **Connect**: as above.
-3. **Configure build env...**: you fill in the project ID, the OS (`LINUX` / `UBUNTU` / `DEBIAN`) and the version (`STD` release / `DBG` debug), plus an optional secure-boot checkbox; the panel saves those parameters and every build applies them automatically. The same step installs missing system dependencies after you enter your `sudo` password.
+3. **Configure build env...**: you fill in the project ID, the OS (`LINUX` / `UBUNTU` / `DEBIAN`) and the version (`STD` release / `DBG` debug), plus an optional secure-boot checkbox; the panel saves those parameters and every build applies them automatically (all compilation happens in the container, so no SDK dependencies are installed on the host). The same step checks the Docker / `colima` status and, if the build image is not ready yet, prepares the Docker build environment (on Linux/WSL it asks for your `sudo` password once — no password is needed on macOS).
 4. **Build**:
    - **Build all**: produces the firmware folder used for flashing.
    - **Build kernel**: produces `dtb.bin` (bootloader) and `efi.bin` (kernel). This is much faster than a full build.
@@ -170,20 +207,106 @@ Click **Build all** in the **Build** section:
 
 ## 6. Connection modes
 
-| Your computer | Mode | Where the SDK lives |
+| Extension host | Mode | Where the SDK lives |
 | --- | --- | --- |
 | **Linux** | Local | a directory on this Linux machine — the most common setup |
 | **Linux** | SSH remote | a remote Ubuntu / Linux build machine |
+| **macOS** | Local | a directory on the Mac (Apple Silicon or Intel) — builds run through a `colima` Docker VM (see section 7) |
+| **macOS** | SSH remote | a remote Ubuntu / Linux build machine — the fastest option on Apple Silicon |
 | **Windows** | Local | **inside WSL** (e.g. `/home/<user>/qpi-sdk`) — the build scripts need Linux |
 | **Windows** | SSH remote | a remote Ubuntu / Linux build machine; your computer is only the UI |
 
-Notes:
+### 6.1 Local connection (the SDK is on the machine running the extension)
 
-- **On Windows**, the extension itself can run on Windows, but the SDK must be inside WSL. Connect with the WSL path, not with a `C:\...` path.
-- **In SSH mode**, if the board is plugged into *your* computer while the build artifacts live on the *remote* machine, the extension first copies the artifacts to a local temporary directory and then writes them to the board with the local flashing tools. You can also leave the board plugged into the remote machine.
-- **The remote machine needs its own copy of VS Code Server** — the extension shows the connection log if the SSH session fails.
+**Linux local** — the most common setup.
 
-## 7. Feature reference
+- Open **Connect SDK**, leave the mode on **Local**, enter the absolute path to the SDK root (the level that contains `build.sh`) and click **Connect**.
+- When the board is plugged into this machine over USB, `adb` must be available here. On native Linux, if it is missing the extension tells you and can install it for you; you can also install it yourself first:
+
+  ```bash
+  sudo apt-get install -y android-tools-adb
+  ```
+
+- The flashing tool qdl depends on `glibc ≥ 2.34` and `libzip.so`, so **Ubuntu 22.04 / 24.04** is recommended for the host (20.04 and older do not satisfy this).
+- If you are not sure whether the environment is complete, run **QPi SDK: environment check** from the command palette — it lists the missing components.
+
+**Windows (SDK inside WSL)**
+
+- Prerequisite 1: install **WSL2** on Windows and put the SDK in a directory inside WSL (e.g. `/home/<user>/qpi-sdk`).
+- Prerequisite 2: **enable systemd in WSL**. The Docker used for building is a systemd service inside WSL; without systemd, `docker` installs but will not start. Edit `/etc/wsl.conf` inside WSL:
+
+  ```ini
+  [boot]
+  systemd=true
+  ```
+
+  Save it, then run `wsl --shutdown` back in Windows and enter WSL again.
+- Prerequisite 3: keep WSL's **Windows interoperability (interop)** enabled (it is on by default). The board's USB is attached to Windows, and the extension connects to the board through the Windows-side `adb.exe` via interop — even if Windows has no platform-tools installed, the extension ships its own `adb`.
+- Connect: choose the **Local** mode and enter the **path inside WSL** as the SDK root (e.g. `/home/<user>/qpi-sdk`) or the shared path (`\\wsl.localhost\<distro>\...`), **never a `C:\...` path**. The extension enters WSL automatically to run the build and other operations.
+- Note: WSL2 uses at most half of the host's memory by default; with too little memory builds are slower and may even hit an OOM. You can raise the memory limit in `%UserProfile%\.wslconfig` on Windows.
+
+**macOS local**
+
+- Connect: choose the **Local** mode and enter the absolute path to the SDK on the Mac.
+- Nothing else to prepare: the build is handled by the `colima` VM + Docker that the extension sets up automatically (see section 7); the `adb` used to talk to the board is bundled with the extension (a universal binary), so there is no need to install platform-tools.
+- A full build on Apple Silicon is slow; if you build full images often, prefer SSH remote below.
+
+### 6.2 SSH remote connection (the SDK is on a remote Linux build machine)
+
+- Open **Connect SDK**, choose the **SSH remote** mode, and fill in the host IP / domain, the port (22 by default), the username, the authentication method (password or private key file), and then the **absolute path to the SDK root on the remote machine**.
+- **The step most people overlook is "Device connection location".** The form has a **Device connection location** field that decides which machine actually runs the device operations — adb, AT, flashing and deploy:
+
+  - **Board connected to this PC** (default): the board is plugged into your own computer over USB. Device operations run locally; if the firmware is produced on the remote build machine (for example H1's `flash.sh`), the extension **first pulls the firmware to a local temporary directory** and then flashes. This machine needs a working `adb` (Windows / macOS have a bundled adb, on Linux you install it yourself).
+  - **Board connected to the remote machine**: the board is plugged into the remote build machine over USB. All device operations run remotely, and the remote machine **must have adb installed** (the extension will not install it there for you):
+
+    ```bash
+    sudo apt install android-tools-adb
+    ```
+
+    Otherwise the extension reports "adb command not found on the remote build machine".
+
+- A typical symptom of getting this field wrong: the board is plugged into your own computer but you selected "board connected to the remote machine" — the commands then go looking for the device on the remote machine and of course do not find it.
+- Other notes: the SDK on the remote machine also needs **Configure build env...** run once; if the connection fails, the extension prints a connection log in the terminal that you can use to track down a path or credential problem.
+
+## 7. Building on macOS
+
+On macOS the build does **not** run directly on the Mac. The extension downloads a lightweight Linux VM (`colima`) and builds inside a Docker container in that VM. The toolchain, the SDK's build dependencies and the scripts are all Linux, so nothing extra needs to be installed on the Mac itself.
+
+### What the extension sets up for you
+
+On the first **Configure build env...** it downloads, into `~/.qpi`:
+
+- `colima` + `lima` (the VM manager), and the `docker` CLI + `buildx`;
+- a base VM image (Ubuntu 24.04) — the first download is a few hundred MB;
+- then it builds the SDK's `quectel-pi-builder` image inside that VM.
+
+The VM is created with **4 CPUs, 8 GB of RAM and a 100 GB disk**. Re-running **Configure build env...** is idempotent — it only fills in what is missing.
+
+> Docker Desktop is intentionally ignored: even if it is installed, the extension always drives Docker through its own `colima` VM (the docker context is pinned to `colima`). You do not need Docker Desktop, and you can leave it uninstalled.
+
+### Apple Silicon vs Intel
+
+| Mac | What happens | Effect |
+| --- | --- | --- |
+| **Intel** (x86_64) | The container matches the host architecture, so it runs natively | Normal build speed |
+| **Apple Silicon** (arm64) | The SDK only ships an x86_64 toolchain, so the image is built for `linux/amd64` and run under QEMU emulation | Works, but builds are noticeably **slower** than on an Intel Mac or a native Linux machine |
+
+On Apple Silicon the extension also fixes a known QEMU bug: the emulator that ships with the VM crashes (`QEMU internal SIGSEGV`) as soon as a build tool reads `/proc/self/maps`, which the kernel's `grep` / `flex` / assembler probes do. The extension installs a patched QEMU 9.x interpreter into the VM and registers it for x86_64 binaries, so builds finish instead of dying with exit code 2. This is automatic — you will see `[QPi] ... QEMU ...` lines in the setup log.
+
+Because of the emulation overhead, a full build on Apple Silicon takes a long time. If you build full images regularly, consider an **SSH remote** Linux build machine instead (section 6) — the heavy compilation then runs natively there.
+
+### Requirements for a successful build on macOS
+
+| Requirement | Details |
+| --- | --- |
+| macOS | A recent macOS (**macOS 13 Ventura or newer** recommended). Both **Apple Silicon** and **Intel** Macs are supported |
+| Free disk | The VM disk is 100 GB (sparse, grows as it is used), on top of the SDK and build output. Allow a few tens of GB for an M2 / H1 simple SDK, and **tens of GB more for a full Yocto build** |
+| Memory | 8 GB is reserved for the VM, so **16 GB of Mac RAM** is recommended |
+| Network | Needed on the first **Configure build env...** — it downloads `colima`, the base VM image and the build image |
+| Nothing else | No Homebrew, no Docker Desktop, no toolchain, and no `sudo` password |
+| Flashing from the Mac | Only the board's USB/serial driver, if your board needs one. The extension ships `adb` for macOS, so you do not need `platform-tools` |
+
+## 8. Feature reference
 
 Everything the cards do, section by section.
 
@@ -205,7 +328,7 @@ Everything the cards do, section by section.
 
 ### Build
 
-- **Configure build env...** — the one-time (or after-update) environment preparation described in step 3.
+- **Configure build env...** — the one-time (or after-update) environment preparation described in step 3: it prepares Docker (or downloads `colima` on macOS), builds the container image, then runs the SDK's `setenv` inside it. On a Yocto SDK it instead opens the build configuration panel and, if needed, prepares the Docker environment.
 - **Build all** — the full build, producing flashable images for your SDK.
 - **Build boot** / **Build kernel** — only one of the two appears, depending on the SDK. On a simple SDK it builds the bootloader; on a Yocto SDK it builds the bootloader and the kernel together.
 - **Clean** — delete build intermediates so the next build starts from scratch.
@@ -214,10 +337,10 @@ Everything the cards do, section by section.
 
 ### Flash & Device
 
-- **Full flash** — write the whole disk. M2 asks which tool to use and ships its own; H1 runs the SDK's `flash.sh`.
-- **Flash boot** / **Flash kernel** — the counterpart of *Build boot / Build kernel*. On the Qualcomm platform a single partition cannot be flashed, so *Flash boot* explains that you should use **Full flash**; on a Yocto SDK *Flash kernel* writes the kernel artifacts to the DTB and ESP partitions.
+- **Full flash** — write the whole disk. M2 asks which tool to use (the tools come from the SDK); H1 runs the SDK's `flash.sh`.
+- **Flash boot** / **Flash kernel** — the counterpart of *Build boot / Build kernel*. On the Qualcomm platform a single partition cannot be flashed, so *Flash boot* tells you to use **Full flash** instead; on a Yocto SDK *Flash kernel* writes the kernel artifacts to the DTB and ESP partitions.
 - **Enter Loader / Enter EDL** — put the board into download mode (M2 → Loader, H1 → EDL 9008).
-- **Deploy file** — copy a file from your computer to a directory on the board (default `/userdata/<file name>`).
+- **Deploy file** — copy a file to a directory on the board (the default is `/userdata/<file name>`).
 - **Device info** — model, OS version, memory, storage, network and more.
 - **Reboot device** — reboot the board.
 
@@ -228,7 +351,7 @@ Everything the cards do, section by section.
 - **journalctl** — the live system log.
 - **AT command** — a serial console: pick the port and baud rate and exchange AT commands with the module. It works over the board's own serial port, the computer's serial port, or the remote build machine's serial port.
 - **Shell** — run shell commands in a terminal attached to the board.
-- **Audio capture** — collect audio logs and configuration for troubleshooting.
+- **Audio diagnostics** — collect audio logs and configuration for troubleshooting.
 
 ### Multimedia
 
@@ -241,19 +364,22 @@ Everything the cards do, section by section.
 - **AI assistant** — opens GitHub Copilot Chat (and offers to install it if it is missing).
 - **API key settings** — opens the settings page used to plug in a third-party AI service (base URL / API key).
 
-## 8. FAQ
+## 9. FAQ
 
 **The panel keeps showing "Not connected".**
 Click **Connect SDK** and enter the SDK directory. After the first successful connection the extension remembers the settings and reconnects by itself.
 
 **It asks for my password.**
-Installing build dependencies and flashing need administrator rights on the machine that holds the SDK. Enter your login password. If passwordless `sudo` is configured, just press `Enter`.
+Installing Docker and building the image — and flashing, on Linux — need administrator rights on the machine that holds the SDK. Enter your login password; if passwordless `sudo` is configured, just press `Enter`. **On macOS no password is ever needed**: the setup downloads `colima` and runs without `sudo`.
 
-**My task stopped when I closed the terminal.**
-That is intentional: each task runs in its own terminal, and closing that terminal aborts the task. It is the quickest way to stop a long build.
+**On macOS, do I need to install Docker or Docker Desktop?**
+No. On the first **Configure build env...** the extension downloads `colima` (its own lightweight Linux VM) and the docker CLI into `~/.qpi` — no Homebrew and no `sudo`. Docker Desktop is ignored even if it is installed. See section 7.
+
+**Why is the build so slow on my Apple Silicon Mac?**
+The SDK only provides an x86_64 toolchain, so the container is built for `linux/amd64` and runs under QEMU emulation. It works — the extension fixes the QEMU bug that would otherwise abort the build — but a full build takes a long time. If you build full images often, use an **SSH remote** Linux machine instead (section 7).
 
 **"No usable flashing tool found".**
-On Windows the extension ships the tools it needs. On Linux, make sure your SDK provides them or install them (`upgrade_tool`, `rkdeveloptool`) — the extension tells you which ones it looked for.
+The Rockchip flashing tools come with the SDK (`tools/flash/`, declared by `FLASH_TOOLS_*` in the SDK's `tools/VERSION.txt`), so first check that your SDK is complete. Otherwise install them on the machine that does the flashing (`upgrade_tool`, `rkdeveloptool`) — the extension tells you which ones, and where, it looked for.
 
 **How do I switch between Chinese and English?**
 The 🌐 button in the panel header. The side bar, the status bar and every open tab switch immediately.
@@ -270,15 +396,30 @@ Search for `qpiSdk` in the VS Code settings:
 | `qpiSdk.backend.remoteKey` | empty | key of the helper service in `remote` mode |
 | `qpiSdk.backend.pythonMirror` | empty (chosen by your network) | mirror used to fetch the bundled Python runtime |
 | `qpiSdk.backend.pipMirror` | empty (chosen by your network) | package index used to install the helper service's dependencies |
+| `qpiSdk.download.proxy` | empty (direct) | proxy used for all downloads, e.g. `http://127.0.0.1:7890` or `socks5://127.0.0.1:7890` |
+| `qpiSdk.download.mirror` | auto | the mirror acceleration policy, see the table below |
+
+Values of `qpiSdk.download.mirror`:
+
+| Value | Meaning |
+| --- | --- |
+| `auto` | detect the network environment and decide between Chinese mirrors and the official sources |
+| `cn` | always prefer Chinese mirrors (Tsinghua / USTC / Aliyun / NJU) |
+| `global` | always prefer the official sources (GitHub / PyPI / download.docker.com) |
+| `off` | turn mirrors off completely and use only the official sources (can be combined with a proxy) |
+
+**How the proxy and the mirror differ, and how they work together**: `download.proxy` is the traffic exit (it proxies every download — SDK repositories, the Python runtime, pip, the Docker toolchain, apt); `download.mirror` chooses the source site. Chinese mirrors are reached directly, so the two can be used together (for example, keep a proxy enabled and still use a Chinese mirror for speed).
+
+The most convenient way to set both is the **QPi SDK: Configure download proxy / mirror** command in the command palette — it walks you through the proxy address and the mirror policy, which is easier than editing the settings by hand.
 
 **Where are the screenshots in this document from?**
 They were taken on a Linux (WSL) setup with an H1 simple SDK. The layout is identical on other platforms; only the SDK-specific buttons differ, as described in section 5.
 
-## 9. Feedback
+## 10. Feedback
 
 Found a bug, or have a question or a feature request? Please open an issue:
 
-**https://github.com/Quectel-Pi/vscode-extension-quectelpi-issues/issues**
+**https://github.com/quectel-developer/qpi-vscode-extension-doc/issues**
 
 It helps to include: your operating system (and whether the SDK lives under WSL), the SDK type (M2 / H1 simple / H1 Yocto), what you did, what you expected, and what actually happened. The log from the terminal that ran the task is the most useful thing to attach.
 
@@ -286,7 +427,7 @@ It helps to include: your operating system (and whether the SDK lives under WSL)
 
 # Part 2 · Development & Maintenance
 
-> This part is for developers and maintainers of the extension. You do not need it to use the extension.
+> This part is for developers and maintainers of the extension.
 
 ## 1. Architecture
 
@@ -321,7 +462,7 @@ python/
   server.py              FastAPI entry point (prints READY port=<port> key=<key>)
   quecpi/                implementation: api.py routes / sdk_ops.py SDK operations / i18n.py backend strings
   requirements.txt       backend dependencies
-tools/                   bundled binaries such as the flashing tools
+tools/                   bundled binaries: Windows + macOS adb, and a patched QEMU for Apple Silicon builds
 images/                  screenshots used by this document
 ```
 
@@ -354,7 +495,7 @@ npx vsce package --no-dependencies --allow-missing-repository --skip-license --n
 Two packaging details worth knowing:
 
 - `--allow-missing-repository` is required because `package.json` has no `repository` field.
-- `--no-rewrite-relative-links` keeps the relative link of this document (`README.zh-CN.md`) as it is. The screenshots are absolute URLs hosted in the `Quectel-Pi/vscode-extension-quectelpi-issues` repository, so vsce no longer needs a repository field to resolve image paths.
+- `--no-rewrite-relative-links` keeps the relative link of this document (`README.zh-CN.md`) as it is. The screenshots are absolute URLs hosted in the `quectel-developer/qpi-vscode-extension-doc` repository, so vsce no longer needs a repository field to resolve image paths.
 
 The result is `quectelpi-<version>.vsix`, installed through **Install from VSIX...** in VS Code.
 
@@ -375,4 +516,8 @@ Press **F5** in VS Code to launch the Extension Development Host. It starts the 
 
 **Localization.** Frontend strings live in `src/i18n.ts`, backend strings in `python/quecpi/i18n.py`. Switching language rebuilds the side bar, the status bar and every open tab; requests carry an `X-QPi-Lang` header and the backend answers in the matching language. Note that the `%key%` titles in `package.json` are resolved once when the extension loads, so a runtime switch must reset them in code (for example `view.title`).
 
-**Packaging notes.** `tools/fix_vsix.py` and `tools/sshrun.py` are encrypted binaries (not plain Python); they cannot be executed and are not referenced by any script. `npm run package` used to call `fix_vsix.py`, which failed with `SyntaxError: source code cannot contain null bytes`; that step is gone, and the executable bits of the bundled Linux tools are set at runtime with `os.chmod(..., 0o755)`.
+**Packaging notes.** `tools/fix_vsix.py` and `tools/sshrun.py` are encrypted binaries (not plain Python); they cannot be executed and are not referenced by any script. `npm run package` used to call `fix_vsix.py`, which failed with `SyntaxError: source code cannot contain null bytes`; that step is gone. The package ships no flash tools: the Rockchip host tools come with the SDK under `tools/flash/`, declared by `FLASH_TOOLS_*` in the SDK's `tools/VERSION.txt`, and the extension references them in place. What *is* bundled is whitelisted one directory at a time in `.vscodeignore` (`tools/**` is otherwise excluded):
+
+- **Windows `adb`** (exe + 2 DLLs), staged to `%LOCALAPPDATA%\QuectelPi\adb\` when Windows has no `adb` in `PATH`;
+- **macOS `adb`** (a single universal Mach-O binary), executed in place from the extension so Mac users need no `platform-tools`;
+- **a patched QEMU 9.x** (`tools/qemu/linux-arm64/qemu-x86_64`, an arm64 static-pie binary) that is pushed into the `colima` VM on Apple Silicon so the `--platform linux/amd64` build no longer dies with `QEMU internal SIGSEGV` (see Part 1, section 7).
