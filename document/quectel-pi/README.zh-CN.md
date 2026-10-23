@@ -178,7 +178,7 @@ SDK 的编译、烧录与设备操作都在这台机器上完成（或由它经 
 4. **全量编译**：产出 `update.img`。**编译 Boot** 只编译 bootloader。
 5. **设备信息**：用 USB 插上开发板，确认已被识别。
 6. **进 Loader**：让开发板进入 Rockchip loader 模式。
-7. **全量烧录**：选择烧录工具（`upgrade_tool` / `rkdeveloptool` / `RKDevTool`）并写入 `update.img`；也可以单独用 **烧录 Boot** 写 boot 分区。
+7. **全量烧录**：选择烧录工具（`upgrade_tool` / `rkdeveloptool`）并写入 `update.img`；也可以单独用 **烧录 Boot** 写 boot 分区。
 8. **重启设备**。
 
 ### 5.2 H1 Simple SDK（QCS6490）

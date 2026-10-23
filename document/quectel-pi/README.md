@@ -177,7 +177,7 @@ Click **Build all** in the **Build** section:
 4. **Build all**: produces `update.img`. **Build boot** builds only the bootloader.
 5. **Device info**: plug in the board over USB and confirm it is detected.
 6. **Enter Loader**: puts the board into the Rockchip loader mode.
-7. **Full flash**: pick a flashing tool (`upgrade_tool` / `rkdeveloptool` / `RKDevTool`) and write `update.img`; the boot partition can also be flashed on its own with **Flash boot**.
+7. **Full flash**: pick a flashing tool (`upgrade_tool` / `rkdeveloptool`) and write `update.img`; the boot partition can also be flashed on its own with **Flash boot**.
 8. **Reboot device**.
 
 ### 5.2 H1 Simple SDK (QCS6490)
